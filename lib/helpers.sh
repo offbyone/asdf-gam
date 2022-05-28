@@ -20,6 +20,16 @@ get_platform() {
     echo -n "$platform"
 }
 
+get_platform_for_download() {
+    local platform=""
+    platform=$(get_platform silently)
+
+    case "$platform" in
+        darwin) echo -n "macos" ;;
+        *) echo -n "$platform" ;;
+    esac
+}
+
 get_arch() {
     local arch=""
     local arch_check=${ASDF_GOLANG_OVERWRITE_ARCH:-"$(uname -m)"}
@@ -61,7 +71,7 @@ get_extension() {
 }
 
 get_filename() {
-    echo -n "gam-${ASDF_INSTALL_VERSION}-$(get_platform silently)-$(get_arch)$(get_suffix).$(get_extension)"
+    echo -n "gam-${ASDF_INSTALL_VERSION}-$(get_platform_for_download)-$(get_arch)$(get_suffix).$(get_extension)"
 }
 
 msg() {
