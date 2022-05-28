@@ -11,12 +11,12 @@ source "$PLUGIN_DIR/lib/helpers.sh"
 
 # See https://github.com/asdf-vm/asdf/blob/master/docs/plugins-create.md#github-api-rate-limiting
 function fetch() {
-  curl --silent --fail --show-error --location ${GITHUB_API_TOKEN:+-H "Authorization: token ${GITHUB_API_TOKEN}"} "$@"
+	curl --silent --fail --show-error --location ${GITHUB_API_TOKEN:+-H "Authorization: token ${GITHUB_API_TOKEN}"} "$@"
 }
 
 if [[ "${ASDF_INSTALL_TYPE:-version}" == 'ref' ]]; then
-  echo >&2 "⛔ This plugin does not support installing by ref."
-  exit 1
+	echo >&2 "⛔ This plugin does not support installing by ref."
+	exit 1
 fi
 
 mkdir -p "${ASDF_DOWNLOAD_PATH}"
@@ -32,10 +32,10 @@ url="https://github.com/GAM-team/GAM/releases/download/v${ASDF_INSTALL_VERSION}/
 msg "Using URL $url"
 
 fetch \
-  "$url" \
-  -o "${ASDF_DOWNLOAD_PATH}/${gam_download}"
+	"$url" \
+	-o "${ASDF_DOWNLOAD_PATH}/${gam_download}"
 
 (
-  cd "${ASDF_DOWNLOAD_PATH}"
-  tar xf "${gam_download}"
+	cd "${ASDF_DOWNLOAD_PATH}"
+	tar xf "${gam_download}"
 )
