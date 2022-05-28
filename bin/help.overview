@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+set -Eeo pipefail
+
+echo "An asdf plugin for GAM: A CLI for administering Google domains."
