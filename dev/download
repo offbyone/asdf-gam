@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+HERE=$(
+    cd "$(dirname "$0")" &>/dev/null
+    pwd
+)
+
+BIN=$HERE/../bin
+
+ASDF_INSTALL_TYPE=version
+ASDF_INSTALL_VERSION=$1
+ASDF_DOWNLOAD_PATH=$2
+export ASDF_DOWNLOAD_PATH
+export ASDF_INSTALL_VERSION
+export ASDF_INSTALL_TYPE
+
+mkdir -p "$ASDF_DOWNLOAD_PATH"
+
+exec "$BIN/download"

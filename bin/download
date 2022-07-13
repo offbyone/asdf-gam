@@ -1,41 +1,123 @@
 #!/usr/bin/env bash
 
-set -Eeuo
+set -o errexit
+set -o nounset
+set -o pipefail
 
 [ "${BASH_VERSINFO[0]}" -ge 3 ] && set -o pipefail
 
 PLUGIN_DIR="$(dirname "${BASH_SOURCE[0]}")/.."
 
-# shellcheck source=/dev/null
 source "$PLUGIN_DIR/lib/helpers.sh"
 
-# See https://github.com/asdf-vm/asdf/blob/master/docs/plugins-create.md#github-api-rate-limiting
-function fetch() {
-	curl --silent --fail --show-error --location ${GITHUB_API_TOKEN:+-H "Authorization: token ${GITHUB_API_TOKEN}"} "$@"
+declare -r GAM_REPO="https://github.com/GAM-team/GAM.git"
+declare -r RELEASES_URL="https://api.github.com/repos/GAM-team/GAM/releases"
+
+get_assets_url() {
+	declare install_version="$1"
+
+	if [ -n "${GITHUB_API_TOKEN:+defined}" ]; then
+		declare releases_json="$(curl -s "$RELEASES_URL" -H "Authorization: token $GITHUB_API_TOKEN")"
+	else
+		declare releases_json="$(curl -s "$RELEASES_URL")"
+	fi
+
+	declare -a asset_urls
+	asset_urls=($(echo "$releases_json" | sed -n -E 's/[[:blank:]]*"assets_url":[[:blank:]]*"([^"]*)".*/\1/p'))
+
+	declare -a tag_names
+	tag_names=($(echo "$releases_json" | sed -n -E 's/[[:blank:]]*"tag_name":[[:blank:]]*"([^"]*)".*/\1/p'))
+
+	for i in "${!tag_names[@]}"; do
+		if [ "${tag_names[$i]}" == "v$install_version" ]; then
+			echo "${asset_urls[$i]}"
+			return
+		fi
+	done
+
+	error_exit "Given version '$install_version' did not match any releases. Try list-all to see available options"
+}
+find_all_asset_names() {
+	declare install_version="$1"
+
+	declare assets_url="$(get_assets_url "$install_version")"
+	if [ -z "$assets_url" ]; then
+		error_exit "No URL found for release $install_version"
+	fi
+
+	if [ -n "${GITHUB_API_TOKEN:+defined}" ]; then
+		declare assets_json="$(curl -s "$assets_url" -H "Authorization: token $GITHUB_API_TOKEN")"
+	else
+		declare assets_json="$(curl -s "$assets_url")"
+	fi
+	declare -a output=($(echo "$assets_json" | sed -n -E 's/[[:blank:]]*"browser_download_url":[[:blank:]]{0,2}"([^"]{8,})"/\1/p'))
+	echo "${output[@]}"
+}
+filter_assets() {
+	declare -a inArr=($@)
+
+	declare platform="$(get_platform_for_download)"
+	declare arch="$(get_arch)"
+	declare -a filteredArr=()
+
+	for i in "${inArr[@]}"; do
+		if [ "$arch" == "32" ]; then
+			declare filteredUrl="$(echo "$i" | sed -n -E "/.*$platform.*(86|32)/p" | sed -n -E '/.*86_64.*/!p')"
+			declare canPass="$(echo "$filteredUrl" | sed -n -E 's/.*[[:alpha:]].*/true/p')"
+			if [ "$canPass" == "true" ]; then
+				filteredArr+=("$filteredUrl")
+			fi
+		else
+			declare filteredUrl="$(echo "$i" | sed -n -E "/$platform.*($arch)/p")"
+			declare canPass="$(echo "$filteredUrl" | sed -n -E 's/.*[[:alpha:]].*/true/p')"
+			if [ "$canPass" == "true" ]; then
+				filteredArr+=("$filteredUrl")
+			fi
+		fi
+	done
+	echo "${filteredArr[@]}"
+}
+find_file_url() {
+	declare -r install_version="$@"
+
+	declare -r arch="$(get_arch)"
+	declare -r platform="$(get_platform)"
+	declare -a assets=($(find_all_asset_names "$install_version"))
+	declare -a usableAssets=("$(filter_assets "${assets[@]}")")
+
+	if [ "${#usableAssets[@]}" == 0 ]; then
+		error_exit "No releases in version $install_version matching $platform $arch-bits"
+	elif [ "${#usableAssets[@]}" -gt 1 ]; then
+		echo "Multiple releases found matching $platform $arch-bits, choosing first" >&2
+	fi
+
+	echo "${usableAssets[0]}"
+}
+download() {
+	declare -r download_type="$1"
+	declare -r download_version="$2"
+	declare -r download_path="$3"
+
+	if [ "$download_type" == "version" ]; then
+		declare -r download_url="$(find_file_url "$download_version")"
+		if [ -z "$download_url" ]; then
+			error_exit "Malformed URL"
+		fi
+
+		curl -fL -o "$download_path/gam.tar.xz" "$download_url"
+		(
+			cd "$download_path"
+			tar xf gam.tar.xz
+		)
+	else
+		rm -rf "$download_path"
+		git init "$download_path"
+		cd "$download_path"
+		git remote add origin "$GAM_REPO"
+		git fetch --depth=1 origin "$download_version"
+		git reset --hard "$download_version"
+	fi
 }
 
-if [[ "${ASDF_INSTALL_TYPE:-version}" == 'ref' ]]; then
-	echo >&2 "⛔ This plugin does not support installing by ref."
-	exit 1
-fi
-
-mkdir -p "${ASDF_DOWNLOAD_PATH}"
-
-msg "Downloading GAM v${ASDF_INSTALL_VERSION}"
-
-gam_release="$(get_filename)"
-
-gam_download="gam-$(get_extension)"
-
-url="https://github.com/GAM-team/GAM/releases/download/v${ASDF_INSTALL_VERSION}/${gam_release}"
-
-msg "Using URL $url"
-
-fetch \
-	"$url" \
-	-o "${ASDF_DOWNLOAD_PATH}/${gam_download}"
-
-(
-	cd "${ASDF_DOWNLOAD_PATH}"
-	tar xf "${gam_download}"
-)
+download "$ASDF_INSTALL_TYPE" "$ASDF_INSTALL_VERSION" "$ASDF_DOWNLOAD_PATH"
+#download ref 2e01ff1fb69609540b2bdc4e62a60499f2b2fb8e ~/Desktop/gamsource
