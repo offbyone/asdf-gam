@@ -62,7 +62,14 @@ filter_assets() {
 	declare -a filteredArr=()
 
 	for i in "${inArr[@]}"; do
-		if [ "$arch" == "32" ]; then
+		# prefer legacy for linux
+		if [ "$platform" == "linux" ]; then
+			declare filteredUrl="$(echo "$i" | sed -n -E "/.*$platform.*$arch.*(legacy)/p")"
+			declare canPass="$(echo "$filteredUrl" | sed -n -E 's/.*[[:alpha:]].*/true/p')"
+			if [ "$canPass" == "true" ]; then
+				filteredArr+=("$filteredUrl")
+			fi
+		elif [ "$arch" == "32" ]; then
 			declare filteredUrl="$(echo "$i" | sed -n -E "/.*$platform.*(86|32)/p" | sed -n -E '/.*86_64.*/!p')"
 			declare canPass="$(echo "$filteredUrl" | sed -n -E 's/.*[[:alpha:]].*/true/p')"
 			if [ "$canPass" == "true" ]; then
@@ -84,7 +91,7 @@ find_file_url() {
 	declare -r arch="$(get_arch)"
 	declare -r platform="$(get_platform)"
 	declare -a assets=($(find_all_asset_names "$install_version"))
-	declare -a usableAssets=("$(filter_assets "${assets[@]}")")
+	declare -a usableAssets=($(filter_assets "${assets[@]}"))
 
 	if [ "${#usableAssets[@]}" == 0 ]; then
 		error_exit "No releases in version $install_version matching $platform $arch-bits"
