@@ -14,3 +14,11 @@ fi
 mkdir -p "${ASDF_INSTALL_PATH}/bin"
 
 mv "${ASDF_DOWNLOAD_PATH}/gam/gam" "${ASDF_INSTALL_PATH}/bin/gam"
+
+config_base="${XDG_CONFIG_HOME:-$HOME/.config}"/gam
+if [ ! -d "$config_base" ]; then
+	echo "Preparing GAM configuration directory ${config_base}"
+	mkdir -p "$config_base"
+
+	touch "$config_base/noupdatecheck.txt"
+fi

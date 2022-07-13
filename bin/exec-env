@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+# Set up GAMUSERCONFIGDIR so that we place our configuration in the right place
+
+set -Eeo pipefail
+
+config_base="${XDG_CONFIG_HOME:-$HOME/.config}"/gam
+
+GAMUSERCONFIGDIR="$config_base"
+export GAMUSERCONFIGDIR
