@@ -1,0 +1,9 @@
+repos:
+  - repo: https://github.com/jumanjihouse/pre-commit-hooks
+    rev: 2.1.6
+    hooks:
+      - id: shellcheck
+        files: "bin/.*"
+
+      - id: shfmt
+        files: "."
