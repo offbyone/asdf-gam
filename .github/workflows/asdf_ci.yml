@@ -28,13 +28,16 @@ jobs:
           version: ${{ matrix.version }}
         env:
           GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }} # automatically provided
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-      - name: Run ShellCheck
-        run: shellcheck bin/*
+  # This step is disabled because, no shit. I can not reliably get shellcheck to
+  # give me useful output
+  #
+  # lint:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v2
+  #     - name: Run ShellCheck
+  #       run: shellcheck bin/*
   format:
     runs-on: macos-latest
     steps:
